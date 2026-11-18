@@ -5,12 +5,13 @@
 // play sounds) without the world knowing about screens or audio. Pools are
 // allocated once, at boot; nothing here allocates in the hot loop.
 
-import { BANDS, COMBO, DEPTH, FIELD, HEART, LIVES, MOTH, PARTICLE_POOL, POOL_SIZE, SPORE, THORN } from './config.js';
+import { BANDS, BAT, COMBO, DEPTH, FIELD, GRAZE, HEART, LIVES, MOTH, PARTICLE_POOL, POOL_SIZE, SPORE, THORN } from './config.js';
 import { range } from './random.js';
 
 export const KIND_SPORE = 0;
 export const KIND_THORN = 1;
 export const KIND_HEART = 2;
+export const KIND_BAT = 3;
 
 export const EVENT_SPORE = 1;
 export const EVENT_HIT = 2;
@@ -38,7 +39,7 @@ export function createWorld(random) {
   };
   const items = [];
   for (let index = 0; index < POOL_SIZE; index += 1) {
-    items.push({ active: false, kind: KIND_SPORE, x: 0, y: 0, radius: 0, speed: 0, phase: 0, bob: 0 });
+    items.push({ active: false, kind: KIND_SPORE, x: 0, y: 0, radius: 0, speed: 0, phase: 0, bob: 0, graced: false });
   }
   const particles = [];
   for (let index = 0; index < PARTICLE_POOL; index += 1) {
@@ -60,8 +61,12 @@ export function createWorld(random) {
     shake: 0,
     won: false,
     over: false,
+    gathered: 0,
+    maxCombo: 0,
+    banner: null,
     sporeTimer: 0.6,
     thornTimer: 1.2,
+    batTimer: 5,
     heartTimer: HEART.interval,
     band: BANDS[0],
   };
@@ -90,8 +95,12 @@ export function createWorld(random) {
     state.shake = 0;
     state.won = false;
     state.over = false;
+    state.gathered = 0;
+    state.maxCombo = 0;
+    state.banner = null;
     state.sporeTimer = 0.6;
     state.thornTimer = 1.2;
+    state.batTimer = 5;
     state.heartTimer = HEART.interval;
     state.band = BANDS[0];
   }
@@ -147,6 +156,40 @@ export function createWorld(random) {
     item.speed = state.scroll * (0.9 + random() * 0.3);
     item.phase = random() * Math.PI * 2;
     item.bob = 14 + random() * 22;
+    item.graced = false;
+  }
+
+  /** A spore trail: four spores on a shallow arc, made to be chained for combo. */
+  function spawnSporeArc() {
+    const baseY = 90 + random() * (FIELD.height - 180);
+    const speed = state.scroll * (0.9 + random() * 0.2);
+    for (let index = 0; index < 4; index += 1) {
+      const item = freeItem();
+      if (item === null) return;
+      item.active = true;
+      item.kind = KIND_SPORE;
+      item.radius = SPORE.radius;
+      item.x = FIELD.width + 20 + index * 30;
+      item.y = baseY + Math.sin((index / 3) * Math.PI) * 40 - 20;
+      item.speed = speed;
+      item.phase = random() * Math.PI * 2;
+      item.bob = 10;
+      item.graced = false;
+    }
+  }
+
+  function spawnBat() {
+    const item = freeItem();
+    if (item === null) return;
+    item.active = true;
+    item.kind = KIND_BAT;
+    item.radius = BAT.radius;
+    item.x = FIELD.width + item.radius + 30;
+    item.y = 60 + random() * (FIELD.height - 120);
+    item.speed = BAT.speed * (0.9 + random() * 0.3);
+    item.phase = random() * Math.PI * 2;
+    item.bob = 12;
+    item.graced = false;
   }
 
   function spawnThorn() {
@@ -160,6 +203,7 @@ export function createWorld(random) {
     item.speed = state.scroll * (0.95 + random() * 0.25);
     item.phase = random() * Math.PI * 2;
     item.bob = 10 + random() * 30;
+    item.graced = false;
   }
 
   function spawnHeart() {
@@ -173,6 +217,7 @@ export function createWorld(random) {
     item.speed = state.scroll * 0.9;
     item.phase = random() * Math.PI * 2;
     item.bob = 18;
+    item.graced = false;
   }
 
   /**
@@ -184,7 +229,15 @@ export function createWorld(random) {
   function step(dt, steer, dashRequested, harmless) {
     let events = 0;
     state.elapsed += dt;
+    const depthBefore = state.depth;
     state.depth = depthFor(state.score);
+    if (state.depth > depthBefore && !harmless) {
+      state.banner = { depth: state.depth, life: 1.7, maxLife: 1.7 };
+    }
+    if (state.banner !== null) {
+      state.banner.life -= dt;
+      if (state.banner.life <= 0) state.banner = null;
+    }
     state.band = BANDS[state.depth - 1];
     state.scroll = 90 + state.depth * 22;
     if (state.comboTimer > 0) {
@@ -265,8 +318,16 @@ export function createWorld(random) {
     // Spawning grows denser and faster with depth.
     state.sporeTimer -= dt;
     if (state.sporeTimer <= 0) {
-      spawnSpore();
+      if (random() < 0.3) spawnSporeArc();
+      else spawnSpore();
       state.sporeTimer = Math.max(0.34, SPORE.interval * (1 - (state.depth - 1) * 0.07)) + random() * SPORE.intervalJitter;
+    }
+    if (state.depth >= BAT.firstDepth) {
+      state.batTimer -= dt;
+      if (state.batTimer <= 0) {
+        spawnBat();
+        state.batTimer = BAT.interval * (0.8 + random() * 0.5);
+      }
     }
     state.thornTimer -= dt;
     if (state.thornTimer <= 0) {
@@ -284,18 +345,35 @@ export function createWorld(random) {
       const item = items[index];
       if (!item.active) continue;
       item.x -= item.speed * dt;
-      item.y += Math.sin(state.elapsed * 1.6 + item.phase) * item.bob * dt;
+      if (item.kind === KIND_BAT) {
+        const seek = Math.max(-1, Math.min(1, (moth.y - item.y) / 60));
+        item.y += (seek * BAT.home * 60 + Math.sin(state.elapsed * 2.6 + item.phase) * item.bob) * dt;
+      } else {
+        item.y += Math.sin(state.elapsed * 1.6 + item.phase) * item.bob * dt;
+      }
       if (item.x < -item.radius - 20) {
         item.active = false;
         continue;
       }
       if (harmless) continue;
       const hit = distance(item.x, item.y, moth.x, moth.y);
+      if (item.kind === KIND_THORN && moth.invulnerable === 0) {
+        if (!item.graced && hit < item.radius + MOTH.radius + GRAZE.reach && hit >= item.radius + MOTH.radius * 0.8) {
+          item.graced = true;
+        } else if (item.graced && item.x < moth.x - 50) {
+          item.graced = false;
+          state.score += GRAZE.points;
+          popup(moth.x, moth.y - 26, `+${GRAZE.points} CLOSE!`, '#ffd76a');
+          burst(moth.x, moth.y, '#ffd76a', 4, 90);
+        }
+      }
       if (item.kind === KIND_SPORE) {
         if (hit < item.radius + MOTH.radius) {
           item.active = false;
           state.combo = Math.min(COMBO.max, state.combo + 1);
           state.comboTimer = COMBO.window;
+          state.gathered += 1;
+          if (state.combo > state.maxCombo) state.maxCombo = state.combo;
           const gained = SPORE.points * state.combo;
           state.score += gained;
           popup(item.x, item.y, `+${gained}`, state.band.spore);
@@ -314,7 +392,7 @@ export function createWorld(random) {
           burst(item.x, item.y, '#ff6b9d', 12, 140);
           events |= EVENT_HEART;
         }
-      } else if (moth.invulnerable === 0 && hit < item.radius + MOTH.radius * 0.8) {
+      } else if ((item.kind === KIND_THORN || item.kind === KIND_BAT) && moth.invulnerable === 0 && hit < item.radius + MOTH.radius * 0.8) {
         item.active = false;
         state.lives -= 1;
         state.combo = 0;

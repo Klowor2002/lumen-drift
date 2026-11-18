@@ -40,6 +40,18 @@ export const HEART = {
   interval: 26,
 };
 
+/** Gloom Bats: a second hazard, from Depth 3 down — they drift left and home gently on the moth. */
+export const BAT = {
+  radius: 15,
+  interval: 6.5,
+  speed: 118,
+  home: 0.55,
+  firstDepth: 3,
+};
+
+/** Grazing a thorn-crystal without touching it pays a small near-miss bonus. */
+export const GRAZE = { points: 5, reach: 26 };
+
 /** Combo: pickups inside this window raise the multiplier, up to COMBO.max. */
 export const COMBO = { window: 2.5, max: 5 };
 
@@ -52,16 +64,16 @@ export const PARTICLE_POOL = 256;
 
 /** One palette per depth band, from dim violet dusk down to the golden Sunwell. */
 export const BANDS = [
-  { sky: '#14102a', glow: '#8f7bff', rock: '#241d45', spore: '#b7a6ff', accent: '#7dd7ff' },
-  { sky: '#120f2e', glow: '#9a86ff', rock: '#221a4a', spore: '#c0afff', accent: '#7dd7ff' },
-  { sky: '#100e33', glow: '#a58fff', rock: '#201650', spore: '#c9baff', accent: '#8fe3ff' },
-  { sky: '#0f0e38', glow: '#b094ff', rock: '#1e1456', spore: '#d2c4ff', accent: '#9be8ff' },
-  { sky: '#0e0d3d', glow: '#ba9cff', rock: '#1c125c', spore: '#dbcfff', accent: '#a5ecff' },
-  { sky: '#0d0c42', glow: '#c4a5ff', rock: '#1a1062', spore: '#e3d9ff', accent: '#b0f0ff' },
-  { sky: '#0d0b44', glow: '#cfaeff', rock: '#1b0f66', spore: '#ecbfff', accent: '#c0f2ff' },
-  { sky: '#0e0a44', glow: '#dab8ff', rock: '#1d0e6a', spore: '#f2a9e8', accent: '#d2f6ff' },
-  { sky: '#100940', glow: '#e6c2ff', rock: '#200e6e', spore: '#ffd28a', accent: '#ffe9a8' },
-  { sky: '#171006', glow: '#ffd76a', rock: '#3a2a10', spore: '#ffe9a8', accent: '#fff3c4' },
+  { sky: '#2a2154', glow: '#9a86ff', rock: '#453573', spore: '#c9baff', accent: '#8fe3ff' },
+  { sky: '#271f58', glow: '#a58fff', rock: '#42307a', spore: '#d2c4ff', accent: '#8fe3ff' },
+  { sky: '#241c62', glow: '#b094ff', rock: '#3e2a85', spore: '#dbcfff', accent: '#9be8ff' },
+  { sky: '#33204f', glow: '#ffab6b', rock: '#57305c', spore: '#ffd2a1', accent: '#ffc98a' },
+  { sky: '#1d2a5e', glow: '#7dd7ff', rock: '#2f3f85', spore: '#d9f6ff', accent: '#a5ecff' },
+  { sky: '#14352c', glow: '#7fe0b0', rock: '#245c44', spore: '#baffd9', accent: '#baffd9' },
+  { sky: '#182a5e', glow: '#8fb8ff', rock: '#2c4480', spore: '#cfe2ff', accent: '#c0f2ff' },
+  { sky: '#232050', glow: '#cfd8ff', rock: '#3d3673', spore: '#eef2ff', accent: '#d2f6ff' },
+  { sky: '#33230d', glow: '#ffcf5c', rock: '#5c4214', spore: '#ffe9a8', accent: '#ffe9a8' },
+  { sky: '#3d2a08', glow: '#ffd76a', rock: '#6e4f16', spore: '#fff3c4', accent: '#fff3c4' },
 ];
 
 export const PALETTE = {

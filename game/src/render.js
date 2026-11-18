@@ -5,7 +5,7 @@
 // window, so the same frame paints at any window size.
 
 import { BANDS, DEPTH, FIELD, FONT, LIVES, MOTH, PALETTE } from './config.js';
-import { KIND_HEART, KIND_SPORE, KIND_THORN } from './world.js';
+import { KIND_BAT, KIND_HEART, KIND_SPORE, KIND_THORN } from './world.js';
 
 export const SCREEN_TITLE = 0;
 export const SCREEN_PLAY = 1;
@@ -57,12 +57,35 @@ export function createRenderer(canvas) {
     const band = state.band;
     const gradient = context.createLinearGradient(0, 0, 0, FIELD.height);
     gradient.addColorStop(0, band.sky);
-    gradient.addColorStop(1, '#05030f');
+    gradient.addColorStop(0.62, band.sky);
+    gradient.addColorStop(1, '#0a0618');
     context.fillStyle = gradient;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
-    // Far glow: the moth's light and the depth's own hue.
-    const glow = context.createRadialGradient(state.moth.x, state.moth.y, 10, state.moth.x, state.moth.y, 320);
-    glow.addColorStop(0, band.glow + '2e');
+    // Far glow orbs: the cavern's own deep lights, breathing slowly.
+    for (let index = 0; index < 3; index += 1) {
+      const orbX = FIELD.width * (0.22 + index * 0.28) + Math.sin(state.elapsed * 0.11 + index * 2.4) * 46;
+      const orbY = FIELD.height * (0.3 + (index % 2) * 0.34) + Math.cos(state.elapsed * 0.09 + index * 1.7) * 22;
+      const orbRadius = 190 + index * 50;
+      const orb = context.createRadialGradient(orbX, orbY, 8, orbX, orbY, orbRadius);
+      orb.addColorStop(0, band.glow + '30');
+      orb.addColorStop(1, band.glow + '00');
+      context.fillStyle = orb;
+      context.fillRect(0, 0, FIELD.width, FIELD.height);
+    }
+    // Drifting dust motes, catching the light.
+    context.fillStyle = band.accent;
+    for (let index = 0; index < 42; index += 1) {
+      const moteX = ((index * 173.3) % FIELD.width + state.elapsed * (5 + (index % 5) * 2.2)) % FIELD.width;
+      const moteY = (index * 97.7) % FIELD.height + Math.sin(state.elapsed * 0.7 + index * 1.3) * 9;
+      context.globalAlpha = 0.1 + (index % 4) * 0.05;
+      context.beginPath();
+      context.arc(moteX, moteY, 1 + (index % 3) * 0.7, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.globalAlpha = 1;
+    // The moth's light, wide and warm.
+    const glow = context.createRadialGradient(state.moth.x, state.moth.y, 10, state.moth.x, state.moth.y, 380);
+    glow.addColorStop(0, band.glow + '40');
     glow.addColorStop(1, band.glow + '00');
     context.fillStyle = glow;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
@@ -79,7 +102,7 @@ export function createRenderer(canvas) {
       }
       context.lineTo(FIELD.width, FIELD.height);
       context.closePath();
-      context.fillStyle = layer === 2 ? band.rock : band.rock + (layer === 0 ? '55' : '88');
+      context.fillStyle = layer === 2 ? band.rock : band.rock + (layer === 0 ? '7d' : 'a8');
       context.fill();
       // Stalactites hanging from the ceiling.
       context.beginPath();
@@ -91,19 +114,19 @@ export function createRenderer(canvas) {
       context.lineTo(FIELD.width, 0);
       context.lineTo(0, 0);
       context.closePath();
-      context.fillStyle = band.rock + (layer === 0 ? '44' : '66');
+      context.fillStyle = band.rock + (layer === 0 ? '5c' : '7d');
       context.fill();
     }
   }
 
   function drawSpore(item, band) {
     const pulse = 1 + Math.sin(item.phase * 3 + item.x * 0.01) * 0.15;
-    const glow = context.createRadialGradient(item.x, item.y, 1, item.x, item.y, item.radius * 3);
+    const glow = context.createRadialGradient(item.x, item.y, 1, item.x, item.y, item.radius * 3.8);
     glow.addColorStop(0, band.spore);
     glow.addColorStop(1, band.spore + '00');
     context.fillStyle = glow;
     context.beginPath();
-    context.arc(item.x, item.y, item.radius * 3, 0, Math.PI * 2);
+    context.arc(item.x, item.y, item.radius * 3.8, 0, Math.PI * 2);
     context.fill();
     context.fillStyle = '#ffffff';
     context.beginPath();
@@ -120,6 +143,13 @@ export function createRenderer(canvas) {
   }
 
   function drawThorn(item) {
+    const halo = context.createRadialGradient(item.x, item.y, 1, item.x, item.y, item.radius * 2.4);
+    halo.addColorStop(0, '#8b98d84d');
+    halo.addColorStop(1, '#8b98d800');
+    context.fillStyle = halo;
+    context.beginPath();
+    context.arc(item.x, item.y, item.radius * 2.4, 0, Math.PI * 2);
+    context.fill();
     context.save();
     context.translate(item.x, item.y);
     context.rotate(Math.sin(item.phase + item.x * 0.004) * 0.25);
@@ -134,7 +164,7 @@ export function createRenderer(canvas) {
       else context.lineTo(x, y);
     }
     context.closePath();
-    context.fillStyle = '#8b98d8';
+    context.fillStyle = '#9aa8e8';
     context.fill();
     context.strokeStyle = '#e8eeff';
     context.lineWidth = 1.5;
@@ -144,6 +174,73 @@ export function createRenderer(canvas) {
     context.arc(0, 0, item.radius * 0.3, 0, Math.PI * 2);
     context.fill();
     context.restore();
+  }
+
+  function drawBat(item, state) {
+    const halo = context.createRadialGradient(item.x, item.y, 1, item.x, item.y, item.radius * 2.6);
+    halo.addColorStop(0, '#ff5a6e30');
+    halo.addColorStop(1, '#ff5a6e00');
+    context.fillStyle = halo;
+    context.beginPath();
+    context.arc(item.x, item.y, item.radius * 2.6, 0, Math.PI * 2);
+    context.fill();
+    context.save();
+    context.translate(item.x, item.y);
+    const flap = Math.sin(state.elapsed * 11 + item.phase) * 0.45;
+    // Wings: two dark sails that beat as it flies.
+    context.fillStyle = '#241f3d';
+    for (const side of [-1, 1]) {
+      context.save();
+      context.scale(side, 1);
+      context.rotate(-0.25 - flap * 0.5);
+      context.beginPath();
+      context.moveTo(2, 0);
+      context.quadraticCurveTo(16, -13, 27, -7);
+      context.quadraticCurveTo(20, -2, 22, 3);
+      context.quadraticCurveTo(13, 1, 9, 6);
+      context.closePath();
+      context.fill();
+      context.restore();
+    }
+    // Body and ears.
+    context.fillStyle = '#332a52';
+    context.beginPath();
+    context.ellipse(0, 0, 10, 7.5, 0, 0, Math.PI * 2);
+    context.fill();
+    context.beginPath();
+    context.moveTo(-6, -5);
+    context.lineTo(-3, -12);
+    context.lineTo(-1, -6);
+    context.closePath();
+    context.moveTo(6, -5);
+    context.lineTo(3, -12);
+    context.lineTo(1, -6);
+    context.closePath();
+    context.fill();
+    // Eyes, fixed on the moth.
+    context.fillStyle = '#ff5a6e';
+    context.beginPath();
+    context.arc(-3.5, -1, 1.7, 0, Math.PI * 2);
+    context.arc(3.5, -1, 1.7, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  }
+
+  function drawBanner(state) {
+    if (state.banner === null) return;
+    const banner = state.banner;
+    const alpha = Math.min(1, banner.life / (banner.maxLife * 0.4), (banner.maxLife - banner.life) / 0.25 + 0.2);
+    context.save();
+    context.globalAlpha = Math.max(0, Math.min(1, alpha));
+    context.textAlign = 'center';
+    context.fillStyle = state.band.accent;
+    context.font = `700 34px ${FONT}`;
+    context.fillText(`DEPTH ${banner.depth}`, FIELD.width / 2, 108);
+    context.fillStyle = PALETTE.text;
+    context.font = `600 17px ${FONT}`;
+    context.fillText(DEPTH_NAMES[banner.depth - 1], FIELD.width / 2, 134);
+    context.restore();
+    context.textAlign = 'left';
   }
 
   function drawHeart(item) {
@@ -181,20 +278,21 @@ export function createRenderer(canvas) {
     context.globalAlpha = 1;
     const blink = moth.invulnerable > 0 && Math.floor(moth.invulnerable * 12) % 2 === 0;
     if (blink) context.globalAlpha = 0.35;
-    const glow = context.createRadialGradient(moth.x, moth.y, 2, moth.x, moth.y, 64);
-    glow.addColorStop(0, '#ffe9a888');
+    const glow = context.createRadialGradient(moth.x, moth.y, 2, moth.x, moth.y, 118);
+    glow.addColorStop(0, '#ffe9a8a6');
     glow.addColorStop(1, '#ffe9a800');
     context.fillStyle = glow;
     context.beginPath();
-    context.arc(moth.x, moth.y, 64, 0, Math.PI * 2);
+    context.arc(moth.x, moth.y, 118, 0, Math.PI * 2);
     context.fill();
     const flap = Math.sin(moth.flutter) * 0.55;
     const facing = Math.cos(moth.angle) >= 0 ? 1 : -1;
     context.save();
     context.translate(moth.x, moth.y);
+    context.scale(1.22, 1.22);
     context.rotate(Math.max(-0.5, Math.min(0.5, moth.angle * 0.6)));
     // Wings.
-    context.fillStyle = '#c9b8ff';
+    context.fillStyle = '#d9ccff';
     for (const side of [-1, 1]) {
       context.save();
       context.scale(1, side);
@@ -239,9 +337,12 @@ export function createRenderer(canvas) {
 
   function drawPopups(state) {
     context.textAlign = 'center';
-    context.font = `700 17px ${FONT}`;
+    context.font = `700 19px ${FONT}`;
+    context.lineWidth = 4;
+    context.strokeStyle = '#07040fb8';
     for (const popupItem of state.popups) {
       context.globalAlpha = Math.max(0, popupItem.life / popupItem.maxLife);
+      context.strokeText(popupItem.text, popupItem.x, popupItem.y);
       context.fillStyle = popupItem.color;
       context.fillText(popupItem.text, popupItem.x, popupItem.y);
     }
@@ -254,7 +355,7 @@ export function createRenderer(canvas) {
       FIELD.width / 2, FIELD.height / 2, FIELD.width * 0.62,
     );
     gradient.addColorStop(0, '#00000000');
-    gradient.addColorStop(1, '#00000088');
+    gradient.addColorStop(1, '#0000004d');
     context.fillStyle = gradient;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
   }
@@ -274,7 +375,7 @@ export function createRenderer(canvas) {
     // Combo.
     if (state.combo > 1) {
       context.fillStyle = state.band.spore;
-      context.font = `700 19px ${FONT}`;
+      context.font = `700 21px ${FONT}`;
       context.textAlign = 'center';
       context.fillText(`COMBO x${state.combo}`, FIELD.width / 2, 24);
       context.fillRect(FIELD.width / 2 - 40, 28, 80 * (state.comboTimer / 2.5), 3);
@@ -332,12 +433,16 @@ export function createRenderer(canvas) {
   }
 
   function overlay(title, lines, prompt) {
-    context.fillStyle = '#07040f99';
+    context.fillStyle = '#07040f70';
     context.fillRect(0, 0, FIELD.width, FIELD.height);
     context.textAlign = 'center';
     context.fillStyle = PALETTE.text;
     context.font = `700 54px ${FONT}`;
+    context.save();
+    context.shadowColor = '#8f7bff';
+    context.shadowBlur = 26;
     context.fillText(title, FIELD.width / 2, 150);
+    context.restore();
     context.font = `400 18px ${FONT}`;
     context.fillStyle = PALETTE.muted;
     lines.forEach((line, index) => {
@@ -368,10 +473,12 @@ export function createRenderer(canvas) {
       if (item.kind === KIND_SPORE) drawSpore(item, state.band);
       else if (item.kind === KIND_THORN) drawThorn(item);
       else if (item.kind === KIND_HEART) drawHeart(item);
+      else if (item.kind === KIND_BAT) drawBat(item, state);
     }
     drawMoth(state);
     drawParticles(state);
     drawPopups(state);
+    if (screen === SCREEN_PLAY) drawBanner(state);
     drawVignette();
     context.restore();
     // HUD and overlays are drawn unshaken, on top, in logical coordinates.
@@ -381,7 +488,8 @@ export function createRenderer(canvas) {
       overlay('LUMEN DRIFT', [
         'Pilot Luma, a little light-moth, through the dark cavern.',
         'Gather light-spores to climb toward the Sunwell at Depth 10.',
-        'Chain pickups for a combo up to x5. Dodge the thorn-crystals.',
+        'Chain pickups for a combo up to x5. Dodge the thorn-crystals and the Gloom Bats.',
+        'Graze a crystal without touching it for a +5 CLOSE! bonus.',
         'Arrows / WASD or mouse to fly · Space to dash · P to pause · R to restart · M to mute',
         `Best score: ${best}`,
       ], 'Press Enter or click to begin');
@@ -391,12 +499,14 @@ export function createRenderer(canvas) {
       overlay('THE SUNWELL', [
         `Luma reached Depth 10 — the cavern is lit again.`,
         `Final score: ${state.score} · Best: ${best}`,
+        `Spores gathered: ${state.gathered} · Best combo: x${Math.max(state.maxCombo, 1)}`,
         'Thank you for flying with Luma.',
       ], 'Press R or Enter to fly again');
     } else if (screen === SCREEN_OVER) {
       overlay('THE LIGHT FADES', [
         `Luma's glow went out at Depth ${state.depth} (${DEPTH_NAMES[state.depth - 1]}).`,
         `Final score: ${state.score} · Best: ${best}`,
+        `Spores gathered: ${state.gathered} · Best combo: x${Math.max(state.maxCombo, 1)}`,
       ], 'Press R or Enter to try again');
     }
     context.setTransform(1, 0, 0, 1, 0, 0);

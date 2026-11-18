@@ -7,7 +7,7 @@
 // scene's pilot is careless, so it is caught out and the game-over screen shows.
 
 import { STEP } from './config.js';
-import { EVENT_OVER, KIND_SPORE, KIND_THORN } from './world.js';
+import { EVENT_OVER, KIND_BAT, KIND_SPORE, KIND_THORN } from './world.js';
 import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE, SCREEN_WIN } from './render.js';
 
 const START_SECONDS = 5;
@@ -75,22 +75,35 @@ export function stageShot(name, world) {
     if (world.state.won) break;
   }
   if (name === 'combo') {
-    // Gather a burst of spores around the moth so the x5 combo shows.
+    // Gather a tight ring of spores around the moth so the x5 combo shows.
     const moth = world.state.moth;
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 7; index += 1) {
       const item = world.state.items.find((entry) => !entry.active);
       if (!item) break;
+      const angle = (index / 7) * Math.PI * 2;
       item.active = true;
       item.kind = KIND_SPORE;
       item.radius = 9;
-      item.x = moth.x + 26 + index * 10;
-      item.y = moth.y + (index % 2 === 0 ? -14 : 14);
-      item.speed = 100;
+      item.x = moth.x + Math.cos(angle) * 15;
+      item.y = moth.y + Math.sin(angle) * 15;
+      item.speed = 0;
       item.phase = 0;
       item.bob = 0;
     }
-    for (let index = 0; index < 30; index += 1) {
-      world.step(STEP, { x: 0.6, y: 0 }, false, false);
+    for (let index = 0; index < 12; index += 1) {
+      world.step(STEP, { x: 0.2, y: 0 }, false, false);
+    }
+    // A Gloom Bat closing in, so the new hazard shows in the frame.
+    const bat = world.state.items.find((entry) => !entry.active);
+    if (bat) {
+      bat.active = true;
+      bat.kind = KIND_BAT;
+      bat.radius = 15;
+      bat.x = moth.x + 330;
+      bat.y = moth.y - 84;
+      bat.speed = 118;
+      bat.phase = 0;
+      bat.bob = 12;
     }
   }
   if (name === 'end' && !world.state.over) {
